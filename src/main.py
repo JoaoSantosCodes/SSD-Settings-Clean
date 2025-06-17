@@ -10,10 +10,26 @@ import threading
 import time
 from cleaner import SystemCleaner
 from utils import format_bytes, get_system_info
+import ctypes
+import sys
+
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
 
 class SystemMonitor(ctk.CTk):
     def __init__(self):
         super().__init__()
+
+        # Verificar privilégios de administrador
+        if not is_admin():
+            ctk.messagebox.showerror(
+                "Erro de Privilégios",
+                "Este aplicativo precisa ser executado como administrador."
+            )
+            sys.exit(1)
 
         # Configuração da janela principal
         self.title("SSD Settings Clean - Monitor de Sistema")

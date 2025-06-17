@@ -45,5 +45,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='src/assets/icon.ico',
+    manifest='src/admin_manifest.xml',
+    uac_admin=True,
 ) 
