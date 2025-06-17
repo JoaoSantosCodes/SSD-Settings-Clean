@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import threading
 import time
+from cleaner import SystemCleaner
+from utils import format_bytes, get_system_info
 
 class SystemMonitor(ctk.CTk):
     def __init__(self):
@@ -26,6 +28,9 @@ class SystemMonitor(ctk.CTk):
         self.ram_history = []
         self.disk_history = []
         
+        # Inicializar sistema de limpeza
+        self.cleaner = SystemCleaner()
+        
         # Criar layout principal
         self.create_layout()
         
@@ -35,13 +40,22 @@ class SystemMonitor(ctk.CTk):
         self.monitor_thread.start()
 
     def create_layout(self):
-        # Frame principal
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_rowconfigure(0, weight=1)
+        # Criar notebook para abas
+        self.tabview = ctk.CTkTabview(self)
+        self.tabview.pack(fill="both", expand=True, padx=20, pady=20)
 
+        # Aba de monitoramento
+        self.tab_monitor = self.tabview.add("Monitor")
+        self.create_monitor_tab()
+
+        # Aba de limpeza e otimização
+        self.tab_clean = self.tabview.add("Limpeza e Otimização")
+        self.create_clean_tab()
+
+    def create_monitor_tab(self):
         # Frame superior para métricas em tempo real
-        self.metrics_frame = ctk.CTkFrame(self)
-        self.metrics_frame.grid(row=0, column=0, padx=20, pady=(20,10), sticky="nsew")
+        self.metrics_frame = ctk.CTkFrame(self.tab_monitor)
+        self.metrics_frame.pack(fill="x", padx=20, pady=10)
         
         # CPU Info
         self.cpu_label = ctk.CTkLabel(self.metrics_frame, text="CPU Usage", font=("Roboto", 16, "bold"))
@@ -65,8 +79,8 @@ class SystemMonitor(ctk.CTk):
         self.disk_progress.set(0)
 
         # Frame para gráficos
-        self.graph_frame = ctk.CTkFrame(self)
-        self.graph_frame.grid(row=1, column=0, padx=20, pady=(10,20), sticky="nsew")
+        self.graph_frame = ctk.CTkFrame(self.tab_monitor)
+        self.graph_frame.pack(fill="both", expand=True, padx=20, pady=10)
         
         # Criar figura do matplotlib
         self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3, 1, figsize=(10, 8))
@@ -75,6 +89,102 @@ class SystemMonitor(ctk.CTk):
 
         # Configurar gráficos
         self.setup_graphs()
+
+    def create_clean_tab(self):
+        # Frame para ações de limpeza
+        clean_frame = ctk.CTkFrame(self.tab_clean)
+        clean_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        # Título
+        title = ctk.CTkLabel(clean_frame, text="Limpeza e Otimização do Sistema", 
+                            font=("Roboto", 20, "bold"))
+        title.pack(pady=20)
+
+        # Botão de limpeza de arquivos temporários
+        self.temp_button = ctk.CTkButton(clean_frame, text="Limpar Arquivos Temporários",
+                                       command=self.clean_temp_files)
+        self.temp_button.pack(pady=10)
+
+        # Botão de otimização
+        self.optimize_button = ctk.CTkButton(clean_frame, text="Otimizar Sistema",
+                                           command=self.optimize_system)
+        self.optimize_button.pack(pady=10)
+
+        # Frame para programas inativos
+        inactive_frame = ctk.CTkFrame(clean_frame)
+        inactive_frame.pack(fill="x", padx=20, pady=20)
+
+        inactive_label = ctk.CTkLabel(inactive_frame, text="Programas Inativos (>30 dias)",
+                                    font=("Roboto", 16, "bold"))
+        inactive_label.pack(pady=10)
+
+        # Lista de programas inativos
+        self.inactive_listbox = ctk.CTkTextbox(inactive_frame, height=200)
+        self.inactive_listbox.pack(fill="x", padx=20, pady=10)
+
+        # Botão para atualizar lista de programas inativos
+        refresh_button = ctk.CTkButton(inactive_frame, text="Atualizar Lista",
+                                     command=self.update_inactive_programs)
+        refresh_button.pack(pady=10)
+
+        # Área de log
+        self.log_area = ctk.CTkTextbox(clean_frame, height=150)
+        self.log_area.pack(fill="x", padx=20, pady=20)
+
+    def clean_temp_files(self):
+        self.temp_button.configure(state="disabled")
+        self.log_area.delete("1.0", "end")
+        self.log_area.insert("end", "Limpando arquivos temporários...\n")
+        
+        def clean():
+            bytes_freed, errors = self.cleaner.clean_temp_files()
+            
+            self.log_area.insert("end", f"\nEspaço liberado: {format_bytes(bytes_freed)}\n")
+            if errors:
+                self.log_area.insert("end", "\nErros encontrados:\n")
+                for error in errors:
+                    self.log_area.insert("end", f"- {error}\n")
+            
+            self.temp_button.configure(state="normal")
+        
+        threading.Thread(target=clean, daemon=True).start()
+
+    def optimize_system(self):
+        self.optimize_button.configure(state="disabled")
+        self.log_area.delete("1.0", "end")
+        self.log_area.insert("end", "Otimizando sistema...\n")
+        
+        def optimize():
+            actions = self.cleaner.optimize_system()
+            
+            self.log_area.insert("end", "\nAções realizadas:\n")
+            for action in actions:
+                self.log_area.insert("end", f"- {action}\n")
+            
+            self.optimize_button.configure(state="normal")
+        
+        threading.Thread(target=optimize, daemon=True).start()
+
+    def update_inactive_programs(self):
+        self.inactive_listbox.delete("1.0", "end")
+        self.inactive_listbox.insert("end", "Buscando programas inativos...\n")
+        
+        def update():
+            programs = self.cleaner.get_inactive_programs()
+            
+            self.inactive_listbox.delete("1.0", "end")
+            if not programs:
+                self.inactive_listbox.insert("end", "Nenhum programa inativo encontrado.\n")
+                return
+            
+            for prog in programs:
+                self.inactive_listbox.insert("end", 
+                    f"Nome: {prog['name']}\n"
+                    f"Local: {prog['location']}\n"
+                    f"Último acesso: {prog['last_access'].strftime('%d/%m/%Y %H:%M:%S')}\n"
+                    f"{'='*50}\n")
+        
+        threading.Thread(target=update, daemon=True).start()
 
     def setup_graphs(self):
         self.ax1.set_title('CPU Usage Over Time')

@@ -1,4 +1,5 @@
 customtkinter==5.2.2
 psutil==5.9.8
 matplotlib==3.8.3
-pillow==10.2.0 
+pillow==10.2.0
+pywin32==306 
